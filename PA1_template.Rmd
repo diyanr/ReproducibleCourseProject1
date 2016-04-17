@@ -1,0 +1,126 @@
+---
+title: "Reproducible Course Project 1"
+output: html_document
+---
+
+## Loading the needed libraries    
+Below are the libraries needed:  
+
+```{r, echo=TRUE}
+library(dplyr)
+```
+
+## Loading and preprocessing the data  
+Below is code that is needed to:  
+
+1. Load the data  
+
+```{r, echo=TRUE}
+activity <- read.csv("activity.csv")
+```
+
+2. Process/transform the data  
+
+```{r, echo=TRUE}
+activity$date <- as.Date(activity$date, "%Y-%m-%d")
+```
+
+## What is mean total number of steps taken per day?  
+For this part of the assignment, I am ignoring the missing values in the dataset.  
+
+1. Calculate the total number of steps taken per day  
+
+```{r, echo=TRUE}
+dailyTotalSteps <- activity %>% group_by(date) %>% summarise(total = sum(steps))
+```
+
+2. Make a histogram of the total number of steps taken each day  
+
+```{r daily-total, echo=TRUE, fig.path="figure/"}
+with(dailyTotalSteps, hist(total, main = "Daily Total"))
+```
+
+3. Calculate the mean and median of the total number of steps taken per day  
+
+```{r, echo=TRUE}
+mean(dailyTotalSteps$total, na.rm = TRUE)
+median(dailyTotalSteps$total, na.rm = TRUE)
+```
+
+## What is the average daily activity pattern?  
+
+1. Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)  
+
+```{r daily-average, fig.path="figure/", echo=TRUE}
+intervalAveSteps <- activity %>% group_by(interval) %>% summarise(average = mean(steps, na.rm = TRUE))
+with(intervalAveSteps, plot(interval, average, type = "l", main = "Daily Average"))
+```
+
+2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?  
+
+```{r, echo=TRUE}
+intervalAveSteps$interval[intervalAveSteps$average == max(intervalAveSteps$average)]
+```
+
+## Imputing missing values  
+
+1. Calculate and report the total number of missing values in the dataset  
+
+```{r, echo=TRUE}
+sum(is.na(activity$steps))
+```
+
+2. Devise a strategy for filling in all of the missing values in the dataset.  
+
+```{r, echo=TRUE}
+imputeStep <- function(step, interval){
+  if(is.na(step)) {
+    round(intervalAveSteps$average[intervalAveSteps$interval == interval])
+  } else {
+    step
+  }
+}
+```
+
+3. Create a new dataset that is equal to the original dataset but with the missing data filled in.  
+
+```{r, echo=TRUE}
+newActivity <- mutate(activity, steps = mapply(imputeStep, steps, interval))
+```
+
+4. Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day.  
+
+
+```{r daily-imputed-total, fig.path="figure/", echo=TRUE}
+newDailyTotalSteps <- newActivity %>% group_by(date) %>% summarise(total = sum(steps))
+with(newDailyTotalSteps, hist(total, main = "Daily Imputed Total"))
+mean(newDailyTotalSteps$total, na.rm = TRUE)
+median(newDailyTotalSteps$total, na.rm = TRUE)
+```
+
+## Are there differences in activity patterns between weekdays and weekends?  
+
+1. Create a new factor variable in the dataset with two levels - "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.  
+
+```{r, echo=TRUE}
+makeFactor <- function(date){
+  factor(weekdays(date) %in% c("Saturday","Sunday"), levels = c(TRUE,FALSE), labels = c("weekend","weekday"))
+}
+newActivity <- mutate(newActivity, dayOfWeek = makeFactor(date))
+```
+
+2. Make a panel plot containing a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).  
+
+```{r weekday-average, fig.path="figure/", echo=TRUE}
+weekdayActivity <- newActivity %>% filter(dayOfWeek == "weekday") %>% group_by(interval) %>% summarise(average = mean(steps))
+
+weekendActivity <- newActivity %>% filter(dayOfWeek == "weekend") %>% group_by(interval) %>% summarise(average = mean(steps))
+
+par(mfrow = c(1, 2))
+with(weekdayActivity, plot(interval, average, type = "l", main = "Weekday Average"))
+with(weekendActivity, plot(interval, average, type = "l", main = "Weekend Average"))
+```
+
+
+
+
